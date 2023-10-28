@@ -3,6 +3,10 @@
 
 __global__ void vecAdd(float *in1, float *in2, float *out, int len) {
   //@@ Insert code to implement vector addition here
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if(index<len){
+    out[index] = in1[index] + in2[index];
+  }
 }
 
 int main(int argc, char **argv) {
@@ -25,33 +29,58 @@ int main(int argc, char **argv) {
   hostOutput = (float *)malloc(inputLength * sizeof(float));
   wbTime_stop(Generic, "Importing data and creating memory on host");
 
+  //The input length for memory allocation
+  int len = inputLength * sizeof(float);
+
   wbLog(TRACE, "The input length is ", inputLength);
 
   wbTime_start(GPU, "Allocating GPU memory.");
+
   //@@ Allocate GPU memory here
+  cudaMalloc((void**) &deviceInput1, len);
+  cudaMalloc((void**) &deviceInput2, len);
+  cudaMalloc((void**) &deviceOutput, len);
+  //Done
 
   wbTime_stop(GPU, "Allocating GPU memory.");
 
   wbTime_start(GPU, "Copying input memory to the GPU.");
+
   //@@ Copy memory to the GPU here
+  cudaMemcpy(deviceInput1,hostInput1,len,cudaMemcpyHostToDevice);
+  cudaMemcpy(deviceInput2,hostInput2,len,cudaMemcpyHostToDevice);
+  //Done
 
   wbTime_stop(GPU, "Copying input memory to the GPU.");
 
   //@@ Initialize the grid and block dimensions here
+  dim3 DimGrid(ceil(float(inputLength)/256),1,1);
+  dim3 DimBlock(256,1,1);
+  //Done
 
   wbTime_start(Compute, "Performing CUDA computation");
   //@@ Launch the GPU Kernel here
+  vecAdd<<<DimGrid,DimBlock>>>(deviceInput1,deviceInput2,deviceOutput,inputLength);
+  //Done
 
   cudaDeviceSynchronize();
   wbTime_stop(Compute, "Performing CUDA computation");
 
   wbTime_start(Copy, "Copying output memory to the CPU");
+
   //@@ Copy the GPU memory back to the CPU here
+  cudaMemcpy(hostOutput,deviceOutput,len,cudaMemcpyDeviceToHost);
+  //Done
 
   wbTime_stop(Copy, "Copying output memory to the CPU");
 
   wbTime_start(GPU, "Freeing GPU Memory");
+
   //@@ Free the GPU memory here
+  cudaFree(deviceInput1);
+  cudaFree(deviceInput2);
+  cudaFree(deviceOutput);
+  //Done
 
   wbTime_stop(GPU, "Freeing GPU Memory");
 
